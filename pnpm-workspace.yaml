@@ -1,0 +1,7 @@
+packages:
+  - "apps/*"
+
+engineStrict: true
+allowBuilds:
+  lefthook: true
+  esbuild: true
