@@ -494,7 +494,17 @@ export async function handleApi(req: IncomingMessage, res: ServerResponse): Prom
       res.flushHeaders();
       const gate = newTurnGate();
       await pipeStream(res, turn.readable, {
-        observe: (line) => applyTurnLine(gate, line),
+        observe: (line) => {
+          applyTurnLine(gate, line);
+          // The card is the whole intake turn. Stop the model here instead of
+          // letting it spend more calls — and a doomed write_file — after it.
+          if (intakeTurn && line.type === "tool_end" && line.name === "ask_user" && !line.isError) {
+            void agent
+              .session(project.sessionId)
+              .cancel()
+              .catch((e) => console.error("[intake] stop failed:", e));
+          }
+        },
         beforeEnd: async () => {
           // A stream that failed, was cancelled, or never ended can still carry
           // a closed html fence from a partial reply. Only `end_turn` tells us
@@ -508,7 +518,9 @@ export async function handleApi(req: IncomingMessage, res: ServerResponse): Prom
 
       const outcome = await turn.result.catch(() => null);
       clearTimeout(cancelTimer);
-      if (intakeTurn && outcome?.stopReason === "end_turn") {
+      // The cancelled stop is this route's own doing: the question is on the
+      // card, so the intake is answered and the next turn may build.
+      if (intakeTurn && (gate.asked || outcome?.stopReason === "end_turn")) {
         await Effect.runPromise(setProjectPhase(project.id, "intake_asked")).catch((e) =>
           console.error("[intake] phase update failed:", e),
         );

@@ -65,11 +65,13 @@ function applyLine(
       if (step.state === "active") step.state = failed ? "error" : "done";
     }
     if (turn.text.length > 0 || turn.steps.length > 0) {
+      const content = turn.asked ? stripHtmlFence(turn.text) : turn.text;
       messages.push({
         id: `a:${line.messageId}`,
         projectId,
         role: "assistant",
-        content: turn.asked ? stripHtmlFence(turn.text) : turn.text,
+        // The card is the reply; a whitespace-only stream leaves no prose.
+        content: content.trim().length > 0 ? content : "",
         steps: turn.steps.length > 0 ? turn.steps : undefined,
         saved: pageSaved(line.stopReason, turn.wroteFile, turn.asked, turn.text),
         failed,

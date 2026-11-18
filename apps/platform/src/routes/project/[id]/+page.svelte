@@ -212,6 +212,7 @@
     let sawTurnEnd = false;
     let wroteFiles = false;
     let cleanEnd = false;
+    let asked = false;
     let failed = false;
     let lastCursor = 0;
 
@@ -287,6 +288,7 @@
           step.endedAt = now;
         }
         if (line.name === "write_file" && !line.isError) wroteFiles = true;
+        if (line.name === "ask_user" && !line.isError) asked = true;
         return;
       }
 
@@ -297,7 +299,7 @@
           failed = true;
           liveTrace.failed = true;
           streamError = line.error?.message ?? "The turn ended with an error.";
-        } else if (line.stopReason === "cancelled" && !stoppedByUser) {
+        } else if (line.stopReason === "cancelled" && !stoppedByUser && !asked) {
           streamError =
             "The turn hit its time limit before it finished. Retry or ask for a smaller change.";
         }
@@ -369,7 +371,7 @@
           id: crypto.randomUUID(),
           projectId,
           role: "assistant",
-          content: full,
+          content: full.trim().length > 0 ? full : "",
           saved: wroteFiles || (cleanEnd && /<!DOCTYPE html/i.test(full)),
           failed: liveTrace?.failed ?? failed,
           createdAt: new Date().toISOString(),
