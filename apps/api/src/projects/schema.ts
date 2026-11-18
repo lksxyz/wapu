@@ -44,6 +44,8 @@ export interface Message {
   steps?: MessageStep[];
   /** Assistant turns only: the turn left a page on disk. */
   saved?: boolean;
+  /** The turn itself failed or was cut off; a rejected tool call is not this. */
+  failed?: boolean;
   createdAt: string;
 }
 

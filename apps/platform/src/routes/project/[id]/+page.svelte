@@ -295,6 +295,7 @@
         cleanEnd = line.stopReason === "end_turn";
         if (line.stopReason === "error" || line.stopReason === "unknown") {
           failed = true;
+          liveTrace.failed = true;
           streamError = line.error?.message ?? "The turn ended with an error.";
         } else if (line.stopReason === "cancelled" && !stoppedByUser) {
           streamError =
@@ -341,6 +342,7 @@
         // Stopped by the person — keep what was already written.
       } else {
         failed = true;
+        if (liveTrace) liveTrace.failed = true;
         streamError = e instanceof Error ? e.message : "Something went wrong.";
       }
     }
@@ -369,6 +371,7 @@
           role: "assistant",
           content: full,
           saved: wroteFiles || (cleanEnd && /<!DOCTYPE html/i.test(full)),
+          failed: liveTrace?.failed ?? failed,
           createdAt: new Date().toISOString(),
           trace: liveTrace ?? undefined,
         },
@@ -692,6 +695,7 @@
               trace={message.trace}
               steps={message.steps}
               saved={message.saved ?? false}
+              failed={message.failed ?? false}
             />
           {/each}
 

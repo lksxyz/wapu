@@ -104,5 +104,17 @@ export function runMigrations(): { reset: boolean } {
     db.pragma("user_version = 5");
   }
 
+  // v7: whether the turn itself failed. A tool call the host rejected is a
+  // failed step, not a failed turn; the header must not conflate them.
+  if (reset || version < 7) {
+    const columns = db.prepare(`PRAGMA table_info(messages)`).all() as {
+      name: string;
+    }[];
+    if (!columns.some((column) => column.name === "failed")) {
+      db.exec(`ALTER TABLE messages ADD COLUMN failed INTEGER NOT NULL DEFAULT 0`);
+    }
+    db.pragma("user_version = 7");
+  }
+
   return { reset };
 }

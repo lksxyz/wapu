@@ -15,4 +15,6 @@ export interface ChatTrace {
   endedAt?: number;
   chars?: number;
   reasoning?: string;
+  /** The turn failed or was cut off. A tool error alone is not a failed turn. */
+  failed?: boolean;
 }

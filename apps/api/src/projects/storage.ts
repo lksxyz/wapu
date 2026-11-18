@@ -46,6 +46,7 @@ interface MessageRow {
   content: string;
   steps: string | null;
   saved: number;
+  failed: number;
   position: number;
   createdAt: string;
 }
@@ -83,6 +84,7 @@ function rowToMessage(row: MessageRow): Message {
     content: row.content,
     steps: row.steps ? (JSON.parse(row.steps) as MessageStep[]) : undefined,
     saved: Boolean(row.saved),
+    failed: Boolean(row.failed),
     createdAt: row.createdAt,
   };
 }
@@ -220,8 +222,8 @@ export const replaceMessages = (projectId: string, messages: Message[]) =>
   Effect.try({
     try: () => {
       const insert = db.prepare(
-        `INSERT INTO messages (id, projectId, role, content, steps, saved, position, createdAt)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO messages (id, projectId, role, content, steps, saved, failed, position, createdAt)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       );
       db.transaction(() => {
         db.prepare(`DELETE FROM messages WHERE projectId = ?`).run(projectId);
@@ -233,6 +235,7 @@ export const replaceMessages = (projectId: string, messages: Message[]) =>
             message.content,
             message.steps && message.steps.length > 0 ? JSON.stringify(message.steps) : null,
             message.saved ? 1 : 0,
+            message.failed ? 1 : 0,
             position,
             message.createdAt,
           );

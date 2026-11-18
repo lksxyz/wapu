@@ -23,7 +23,8 @@
       : 0,
   );
   const active = $derived(trace.steps.find((step) => step.state === "active"));
-  const failed = $derived(trace.steps.some((step) => step.state === "error"));
+  // A rejected tool call turns one step red; it does not fail the turn.
+  const failed = $derived(trace.failed === true);
   const title = $derived(
     live
       ? (active?.label ?? "Working")

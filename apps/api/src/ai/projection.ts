@@ -60,7 +60,7 @@ function applyLine(
   if (line.type === "turn_end") {
     const turn = active.get(line.messageId);
     if (!turn) return;
-    const failed = line.stopReason === "error";
+    const failed = line.stopReason === "error" || line.stopReason === "unknown";
     for (const step of turn.steps) {
       if (step.state === "active") step.state = failed ? "error" : "done";
     }
@@ -72,6 +72,7 @@ function applyLine(
         content: turn.asked ? stripHtmlFence(turn.text) : turn.text,
         steps: turn.steps.length > 0 ? turn.steps : undefined,
         saved: pageSaved(line.stopReason, turn.wroteFile, turn.asked, turn.text),
+        failed,
         createdAt,
       });
     }

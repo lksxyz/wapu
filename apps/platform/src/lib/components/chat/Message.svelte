@@ -11,6 +11,7 @@
     trace = undefined,
     steps = undefined,
     saved = false,
+    failed = false,
   }: {
     role: "user" | "assistant";
     content: string;
@@ -18,10 +19,11 @@
     trace?: ChatTrace;
     steps?: TraceStep[];
     saved?: boolean;
+    failed?: boolean;
   } = $props();
 
   const effectiveTrace = $derived(
-    trace ?? (steps && steps.length > 0 ? { steps } : undefined),
+    trace ?? (steps && steps.length > 0 ? { steps, failed } : undefined),
   );
 
   let copied = $state(false);

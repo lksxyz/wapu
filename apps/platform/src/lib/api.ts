@@ -57,6 +57,8 @@ export interface Message {
   steps?: MessageStep[];
   /** The server left a page on disk for this turn. */
   saved?: boolean;
+  /** The turn itself failed; a rejected tool call is not this. */
+  failed?: boolean;
   createdAt: string;
 }
 
