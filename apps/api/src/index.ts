@@ -1,28 +1,56 @@
-import { Effect, Layer, Schema } from "effect";
-import { NodeFileSystem, NodePath, NodeHttpServer, NodeRuntime } from "@effect/platform-node";
-import { HttpApi, HttpApiBuilder, HttpApiEndpoint, HttpApiGroup } from "effect/http-api";
-import { HttpRouter } from "effect/http";
-import { Server } from "node:http";
+import fs from "node:fs/promises";
+import { Effect } from "effect";
+import { runMigrations } from "./db.js";
+import { PROJECTS_DIR, resetLegacyWorkspaces } from "./projects/workspace.js";
+import { listAllProjects } from "./projects/storage.js";
+import { agent } from "./ai/agent.js";
+import { auth } from "./auth.js";
+import { createServer } from "./server.js";
 
-class HealthGroup extends HttpApiGroup.make("health").add(
-  HttpApiEndpoint.get("health", "/health", {
-    success: Schema.Struct({ status: Schema.Literal("ok") }),
-  }),
-) {}
+// ── A: startup call graph ─────────────────────────────────────────────────
+//
+// runMigrations (wapu domain: projects, messages, v2 wipe)
+//   → resetLegacyWorkspaces (single-HTML era files)
+//   → auth.$context (better-auth runs its own migrations at init)
+//   → createServer (binds port — R: both db layers must be ready)
+// E: any failure here → Die. The server must not listen until all tables exist.
+// ─────────────────────────────────────────────────────────────────────────
 
-const api = HttpApi.make("wapu").add(HealthGroup);
+async function main() {
+  const { reset } = runMigrations();
+  if (reset) {
+    await resetLegacyWorkspaces();
+    console.log("[wapu] v2 schema: legacy projects, files, and deploys wiped");
+  } else {
+    await fs.mkdir(PROJECTS_DIR, { recursive: true });
+  }
 
-const HealthLive = HttpApiBuilder.group(api, "health", (handlers) =>
-  handlers.handle("health", () => Effect.succeed({ status: "ok" as const })),
-);
+  await auth.$context;
 
-const App = HttpApiBuilder.layer(api).pipe(Layer.provide(HealthLive));
+  if (!process.env.PREVIEW_TOKEN_SECRET) {
+    console.warn("[wapu] PREVIEW_TOKEN_SECRET is unset; using the insecure development secret");
+  }
 
-const Main = HttpRouter.serve(App).pipe(
-  Layer.provide(NodeFileSystem.layer),
-  Layer.provide(NodePath.layerPosix),
-  Layer.provide(NodeHttpServer.layer(() => new Server(), { port: 3000, host: "localhost" })),
-  Layer.launch,
-);
+  // A process that stopped mid-turn leaves the fx turn open. Resume it now;
+  // the projection picks up the result on the next project load.
+  const projects = await Effect.runPromise(
+    listAllProjects().pipe(Effect.catch(() => Effect.succeed([]))),
+  );
+  for (const project of projects) {
+    try {
+      void agent
+        .session(project.sessionId)
+        .resume()
+        .result.catch((e) => console.error("[wapu] resume failed:", project.id, e));
+    } catch (e) {
+      console.error("[wapu] resume open failed:", project.id, e);
+    }
+  }
 
-NodeRuntime.runMain(Main);
+  createServer();
+}
+
+main().catch((e: unknown) => {
+  console.error("[wapu] Fatal startup error:", e);
+  process.exit(1);
+});

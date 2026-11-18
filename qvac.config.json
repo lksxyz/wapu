@@ -1,0 +1,11 @@
+{
+  "serve": {
+    "models": {
+      "qwen3-1.7b": {
+        "model": "QWEN3_1_7B_INST_Q4",
+        "preload": true,
+        "config": { "ctx_size": 8192, "tools": true, "threads": 8, "reasoning_budget": 0 }
+      }
+    }
+  }
+}

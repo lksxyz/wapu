@@ -1,8 +1,12 @@
 {
   "name": "wapu",
   "private": true,
+  "workspaces": [
+    "apps/*"
+  ],
   "scripts": {
     "prepare": "lefthook install",
+    "dev": "pnpm -r --parallel dev",
     "dev:platform": "pnpm --filter platform dev",
     "dev:api": "pnpm --filter api dev",
     "build": "pnpm -r build",
