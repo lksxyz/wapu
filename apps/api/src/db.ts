@@ -16,6 +16,22 @@ export function runMigrations(): { reset: boolean } {
   const version = db.pragma("user_version", { simple: true }) as number;
   let reset = false;
 
+  // v6 stored a scanned page (url, scan, options). A row from that model has no
+  // fx session, so it cannot be resumed or chatted with. Wipe it once, the same
+  // way the single-HTML schema went in v2.
+  const projectsTable = db
+    .prepare(`SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'projects'`)
+    .get();
+  const hasSession = projectsTable
+    ? (db.prepare(`PRAGMA table_info(projects)`).all() as { name: string }[]).some(
+        (column) => column.name === "sessionId",
+      )
+    : true;
+  if (!hasSession) {
+    db.exec(`DROP TABLE IF EXISTS messages; DROP TABLE IF EXISTS projects;`);
+    reset = true;
+  }
+
   if (version < 2) {
     db.exec(`DROP TABLE IF EXISTS messages; DROP TABLE IF EXISTS projects;`);
     reset = true;
